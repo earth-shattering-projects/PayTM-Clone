@@ -18,7 +18,6 @@ const doesUserExist = async (username, password) => {
 };
 
 router.post("/signup", async (req, res) => {
-  const { username, firstName, lastName, password } = req.body;
   const UserSchema = z.object({
     username: z
       .string()
@@ -47,35 +46,24 @@ router.post("/signup", async (req, res) => {
       }),
   });
 
-  const { success } = UserSchema.safeParse({
-    username,
-    firstName,
-    lastName,
-    password,
-  });
+  const { success, data } = UserSchema.safeParse(req.body);
 
   if (!success) {
     return res.status(411).json({ message: "Incorrect inputs" });
   }
 
-  const existingUser = await doesUsernameExist(username);
+  const existingUser = await doesUsernameExist(data.username);
 
   if (existingUser) {
     return res.status(411).json({ message: "Username already taken" });
   }
-  const newUser = await User.create({
-    username,
-    firstName,
-    lastName,
-    password,
-  });
+  const newUser = await User.create(data);
   const userId = newUser._id;
   const token = jwt.sign({ userId }, JWT_SECRET);
   return res.json({ token, message: "User created successfully" });
 });
 
 router.post("/signin", async (req, res) => {
-  const { username, password } = req.body;
   const UserSchema = z.object({
     username: z
       .string()
@@ -90,16 +78,13 @@ router.post("/signin", async (req, res) => {
       .refine((value) => value.length > 0, { message: "Password is required" }),
   });
 
-  const { success } = UserSchema.safeParse({
-    username,
-    password,
-  });
+  const { success, data } = UserSchema.safeParse(req.body);
 
   if (!success) {
     return res.status(411).json({ message: "Incorrect inputs" });
   }
 
-  const existingUser = await doesUserExist(username, password);
+  const existingUser = await doesUserExist(data.username, data.password);
   if (existingUser) {
     return res.json({
       token: jwt.sign({ userId: existingUser._id }, JWT_SECRET),
