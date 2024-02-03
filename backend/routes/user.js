@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { User, Account } = require("../db");
 const { JWT_SECRET } = require("../config");
 const { authMiddleWare } = require("../middleware");
+const bcrypt = require("bcrypt");
 
 const router = Router();
 
@@ -120,16 +121,21 @@ router.put("/", authMiddleWare, async (req, res) => {
   }
 
   try {
+    if (data.password) {
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+      delete data.password;
+      data.password_hash = hashedPassword;
+    }
     const updatedUser = await User.findByIdAndUpdate(req.userId, data, {
       new: true,
     });
-
     if (!updatedUser) {
       return res.status(411).json({ message: "User not found" });
     }
 
     return res.json({ message: "Updated successfully" });
   } catch (error) {
+    console.log(error);
     return res
       .status(411)
       .json({ message: "Error while updating information" });
