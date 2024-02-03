@@ -12,11 +12,6 @@ const doesUsernameExist = async (username) => {
   return existingUser;
 };
 
-const doesUserExist = async (username, password) => {
-  const existingUser = await User.findOne({ username, password });
-  return existingUser;
-};
-
 router.post("/signup", async (req, res) => {
   const UserSchema = z.object({
     username: z
@@ -51,13 +46,22 @@ router.post("/signup", async (req, res) => {
   if (!success) {
     return res.status(411).json({ message: "Incorrect inputs" });
   }
-
-  const existingUser = await doesUsernameExist(data.username);
+  const { username, password, firstName, lastName } = data;
+  const existingUser = await doesUsernameExist(username);
 
   if (existingUser) {
     return res.status(411).json({ message: "Username already taken" });
   }
-  const newUser = await User.create(data);
+
+  const newUser = new User({
+    username,
+    firstName,
+    lastName,
+  });
+
+  const hashedPassword = await newUser.createHash(password);
+  newUser.password_hash = hashedPassword;
+  await newUser.save();
   const userId = newUser._id;
   await Account.create({
     userId,
@@ -87,14 +91,19 @@ router.post("/signin", async (req, res) => {
   if (!success) {
     return res.status(411).json({ message: "Incorrect inputs" });
   }
+  const { username, password } = data;
+  const existingUser = await doesUsernameExist(username);
+  if (!existingUser) {
+    return res.status(411).json({ message: "Invalid email" });
+  }
 
-  const existingUser = await doesUserExist(data.username, data.password);
-  if (existingUser) {
+  if (await existingUser.validatePassword(password)) {
     return res.json({
       token: jwt.sign({ userId: existingUser._id }, JWT_SECRET),
     });
+  } else {
+    return res.status(411).json({ message: "Invalid password" });
   }
-  return res.status(411).json({ message: "Error while logging in" });
 });
 
 router.put("/", authMiddleWare, async (req, res) => {

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 
 const { MONGO_URI } = require("./config");
 
@@ -16,10 +17,9 @@ const UserSchema = new mongoose.Schema({
     minLength: 3,
     maxLength: 30,
   },
-  password: {
+  password_hash: {
     type: String,
     required: true,
-    minLength: 6,
   },
   firstName: {
     type: String,
@@ -34,6 +34,16 @@ const UserSchema = new mongoose.Schema({
     maxLength: 50,
   },
 });
+
+UserSchema.methods.createHash = async (plainTextPassword) => {
+  const saltRounds = 10;
+  const salt = await bcrypt.genSalt(saltRounds);
+  return await bcrypt.hash(plainTextPassword, salt);
+};
+
+UserSchema.methods.validatePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password_hash);
+};
 
 const User = mongoose.model("User", UserSchema);
 
